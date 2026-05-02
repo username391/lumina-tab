@@ -1,0 +1,46 @@
+{
+  "settings": {
+    "theme": "theme-dark",
+    "folderStyle": "glass",
+    "lang": "en",
+    "showCount": true
+  },
+  "bookmarks": [
+    {
+      "title": "Social Media",
+      "children": [
+        { "title": "Twitter", "url": "https://twitter.com" },
+        { "title": "Reddit", "url": "https://reddit.com" },
+        { "title": "LinkedIn", "url": "https://linkedin.com" },
+        { "title": "Instagram", "url": "https://instagram.com" }
+      ]
+    },
+    {
+      "title": "Tech News",
+      "children": [
+        { "title": "The Verge", "url": "https://theverge.com" },
+        { "title": "TechCrunch", "url": "https://techcrunch.com" },
+        { "title": "Hacker News", "url": "https://news.ycombinator.com" },
+        { "title": "Wired", "url": "https://wired.com" }
+      ]
+    },
+    {
+      "title": "Dev Tools",
+      "children": [
+        { "title": "GitHub", "url": "https://github.com" },
+        { "title": "Stack Overflow", "url": "https://stackoverflow.com" },
+        { "title": "MDN Web Docs", "url": "https://developer.mozilla.org" },
+        { "title": "ChatGPT", "url": "https://chat.openai.com" }
+      ]
+    },
+    {
+      "title": "Entertainment",
+      "children": [
+        { "title": "YouTube", "url": "https://youtube.com" },
+        { "title": "Netflix", "url": "https://netflix.com" },
+        { "title": "Twitch", "url": "https://twitch.tv" },
+        { "title": "Spotify", "url": "https://spotify.com" }
+      ]
+    }
+  ]
+}
