@@ -30,8 +30,11 @@ const UI = {
 		}
 		setLanguage(lang);
 
-		this.elements.grid.innerHTML = '';
-		
+		// Clear grid safely
+		while (this.elements.grid.firstChild) {
+			this.elements.grid.removeChild(this.elements.grid.firstChild);
+		}
+
 		// Handle Auto Theme
 		let themeClass = settings.theme;
 		if (themeClass === 'theme-auto') {
@@ -52,8 +55,8 @@ const UI = {
 			document.body.style.backgroundColor = '';
 		}
 
-			const hiddenFolders = settings.hiddenFolders || [];
-			const filteredItems = items.filter(item => !hiddenFolders.includes(item.id));
+		const hiddenFolders = settings.hiddenFolders || [];
+		const filteredItems = items.filter(item => !hiddenFolders.includes(item.id));
 
 		for (const item of filteredItems) {
 			const tile = await this.createTile(item, settings);
@@ -63,7 +66,10 @@ const UI = {
 		// Add Button
 		const addTile = document.createElement('div');
 		addTile.className = 'tile add-tile';
-		addTile.innerHTML = '<span style="font-size: 2.5rem">+</span>';
+		const plusSpan = document.createElement('span');
+		plusSpan.style.fontSize = '2.5rem';
+		plusSpan.textContent = '+';
+		addTile.appendChild(plusSpan);
 		addTile.addEventListener('click', () => App.showAddModal());
 		this.elements.grid.appendChild(addTile);
 
@@ -79,12 +85,18 @@ const UI = {
 
 		if (!isFolder) {
 			tile.href = item.url;
-			tile.innerHTML = `
-                <img class="tile-icon" src="icons/icon48.png">
-                <div class="tile-title">${item.title || t('untitled')}</div>
-            `;
-			
-			const img = tile.querySelector('.tile-icon');
+
+			const img = document.createElement('img');
+			img.className = 'tile-icon';
+			img.src = 'icons/icon48.png';
+
+			const titleDiv = document.createElement('div');
+			titleDiv.className = 'tile-title';
+			titleDiv.textContent = item.title || t('untitled');
+
+			tile.appendChild(img);
+			tile.appendChild(titleDiv);
+
 			const loadFavicon = async () => {
 				const cached = await Storage.getCachedFavicon(item.url);
 				if (cached) {
@@ -101,94 +113,118 @@ const UI = {
 						try {
 							const dataUrl = canvas.toDataURL();
 							Storage.cacheFavicon(item.url, dataUrl);
-						} catch (e) {}
+						} catch (e) { }
 					};
 				}
 			};
 			loadFavicon();
 			img.onerror = () => { img.src = 'icons/icon48.png'; };
 		} else {
-			let previewHtml = '';
+			let previewContainer;
+			const children = await Storage.getBookmarks(item.id);
+			const count = children.length;
+
 			if (settings.folderStyle === 'glass') {
-				previewHtml = '<div class="folder-preview">';
-				const children = await Storage.getBookmarks(item.id);
+				previewContainer = document.createElement('div');
+				previewContainer.className = 'folder-preview';
+
+				const bookmarks = children.filter(c => c.url);
+				const subfolders = children.filter(c => !c.url);
+
 				for (let i = 0; i < 4; i++) {
-					if (children[i] && children[i].url) {
-						const cIcon = `https://www.google.com/s2/favicons?domain=${new URL(children[i].url).hostname}&sz=32`;
-						previewHtml += `<div class="preview-item"><img src="${cIcon}" class="preview-img"></div>`;
-					} else {
-						previewHtml += '<div class="preview-item"></div>';
-					}
-				}
-				previewHtml += '</div>';
-				} else {
-					// Accurate Yaru-style Folder Icon (Ubuntu)
-					previewHtml = `
-						<svg class="folder-icon-svg" viewBox="0 0 64 64">
-							<defs>
-								<linearGradient id="yaruTop" x1="0%" y1="0%" x2="100%" y2="0%">
-									<stop offset="0%" style="stop-color:#811d53;stop-opacity:1" />
-									<stop offset="100%" style="stop-color:#e95420;stop-opacity:1" />
-								</linearGradient>
-							</defs>
-							<!-- Main Body -->
-							<path fill="#5e5c64" d="M6,18 C6,15.79 7.79,14 10,14 L54,14 C56.21,14 58,15.79 58,18 L58,50 C58,52.21 56.21,54 54,54 L10,54 C7.79,54 6,52.21 6,50 Z"/>
-							<!-- Top Flap (Yaru Gradient) -->
-							<path fill="url(#yaruTop)" d="M6,18 C6,15.79 7.79,14 10,14 L24,14 L30,8 L54,8 C56.21,8 58,9.79 58,12 L58,18 L6,18 Z"/>
-							<!-- Subtle highlight -->
-							<path fill="rgba(255,255,255,0.1)" d="M10,14 L24,14 L30,8 L54,8 C56.21,8 58,9.79 58,12 L58,13 L6,13 L6,18 L6,17 C6,15.79 7.79,14 10,14 Z"/>
-						</svg>
-					`;
-				}
+					const imgWrapper = document.createElement('div');
+					imgWrapper.className = 'preview-item';
 
-				const children = await Storage.getBookmarks(item.id);
-				const count = children.length;
-				let badgeHtml = (settings.showCount && count > 0) ? `<div class="folder-badge">${count}</div>` : '';
+					if (bookmarks[i]) {
+						const domain = new URL(bookmarks[i].url).hostname;
+						const cIcon = `https://www.google.com/s2/favicons?domain=${domain}&sz=32`;
+						const pImg = document.createElement('img');
+						pImg.className = 'preview-img';
+						pImg.src = cIcon;
+						pImg.addEventListener('error', () => { pImg.src = 'icons/icon48.png'; });
+						imgWrapper.appendChild(pImg);
+					} else if (subfolders[i - bookmarks.length] || (bookmarks.length < 4 && subfolders[i])) {
+						const folderIdx = bookmarks.length < 4 ? i - bookmarks.length : i;
+						if (subfolders[folderIdx]) {
+							imgWrapper.style.display = 'flex';
+							imgWrapper.style.alignItems = 'center';
+							imgWrapper.style.justifyContent = 'center';
+							imgWrapper.style.opacity = '0.6';
 
-				if (settings.folderStyle === 'glass') {
-					let previewItemsHtml = '';
-					// Filter bookmarks and folders
-					const bookmarks = children.filter(c => c.url);
-					const subfolders = children.filter(c => !c.url);
-					
-					for (let i = 0; i < 4; i++) {
-						if (bookmarks[i]) {
-							const domain = new URL(bookmarks[i].url).hostname;
-							const cIcon = `https://www.google.com/s2/favicons?domain=${domain}&sz=32`;
-							const imgWrapper = document.createElement('div');
-								imgWrapper.className = 'preview-item';
-								const pImg = document.createElement('img');
-								pImg.className = 'preview-img';
-								pImg.src = cIcon;
-								pImg.addEventListener('error', () => { pImg.src = 'icons/icon48.png'; });
-								imgWrapper.appendChild(pImg);
-								previewItemsHtml += imgWrapper.outerHTML;
-						} else if (subfolders[i - bookmarks.length] || (bookmarks.length < 4 && subfolders[i])) {
-							// If we have space and no more bookmarks, or just generally have subfolders
-							const folderIdx = bookmarks.length < 4 ? i - bookmarks.length : i;
-							if (subfolders[folderIdx]) {
-								previewItemsHtml += `
-									<div class="preview-item" style="display:flex;align-items:center;justify-content:center;opacity:0.6">
-										<svg viewBox="0 0 64 64" style="width:80%;height:80%">
-											<path fill="#e95420" d="M6,18 C6,15.79 7.79,14 10,14 L54,14 C56.21,14 58,15.79 58,18 L58,50 C58,52.21 56.21,54 54,54 L10,54 C7.79,54 6,52.21 6,50 Z"/>
-										</svg>
-									</div>`;
-							} else {
-								previewItemsHtml += '<div class="preview-item"></div>';
-							}
-						} else {
-							previewItemsHtml += '<div class="preview-item"></div>';
+							const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+							svg.setAttribute('viewBox', '0 0 64 64');
+							svg.style.width = '80%';
+							svg.style.height = '80%';
+							const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+							path.setAttribute('fill', '#e95420');
+							path.setAttribute('d', 'M6,18 C6,15.79 7.79,14 10,14 L54,14 C56.21,14 58,15.79 58,18 L58,50 C58,52.21 56.21,54 54,54 L10,54 C7.79,54 6,52.21 6,50 Z');
+							svg.appendChild(path);
+							imgWrapper.appendChild(svg);
 						}
 					}
-					previewHtml = `<div class="folder-preview">${previewItemsHtml}${badgeHtml}</div>`;
-				} else {
-					previewHtml = `<div style="position:relative">${previewHtml}${badgeHtml}</div>`;
+					previewContainer.appendChild(imgWrapper);
 				}
+			} else {
+				previewContainer = document.createElement('div');
+				previewContainer.style.position = 'relative';
 
-				tile.innerHTML = `
-                ${previewHtml}
-                <div class="tile-title">${item.title || t('untitled')}</div>
-            `;
+				const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+				svg.setAttribute('class', 'folder-icon-svg');
+				svg.setAttribute('viewBox', '0 0 64 64');
+
+				const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+				const linearGradient = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
+				linearGradient.setAttribute('id', 'yaruTop');
+				linearGradient.setAttribute('x1', '0%');
+				linearGradient.setAttribute('y1', '0%');
+				linearGradient.setAttribute('x2', '100%');
+				linearGradient.setAttribute('y2', '0%');
+
+				const stop1 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+				stop1.setAttribute('offset', '0%');
+				stop1.setAttribute('style', 'stop-color:#811d53;stop-opacity:1');
+
+				const stop2 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+				stop2.setAttribute('offset', '100%');
+				stop2.setAttribute('style', 'stop-color:#e95420;stop-opacity:1');
+
+				linearGradient.appendChild(stop1);
+				linearGradient.appendChild(stop2);
+				defs.appendChild(linearGradient);
+				svg.appendChild(defs);
+
+				const path1 = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+				path1.setAttribute('fill', '#5e5c64');
+				path1.setAttribute('d', 'M6,18 C6,15.79 7.79,14 10,14 L54,14 C56.21,14 58,15.79 58,18 L58,50 C58,52.21 56.21,54 54,54 L10,54 C7.79,54 6,52.21 6,50 Z');
+
+				const path2 = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+				path2.setAttribute('fill', 'url(#yaruTop)');
+				path2.setAttribute('d', 'M6,18 C6,15.79 7.79,14 10,14 L24,14 L30,8 L54,8 C56.21,8 58,9.79 58,12 L58,18 L6,18 Z');
+
+				const path3 = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+				path3.setAttribute('fill', 'rgba(255,255,255,0.1)');
+				path3.setAttribute('d', 'M10,14 L24,14 L30,8 L54,8 C56.21,8 58,9.79 58,12 L58,13 L6,13 L6,18 L6,17 C6,15.79 7.79,14 10,14 Z');
+
+				svg.appendChild(path1);
+				svg.appendChild(path2);
+				svg.appendChild(path3);
+				previewContainer.appendChild(svg);
+			}
+
+			if (settings.showCount && count > 0) {
+				const badge = document.createElement('div');
+				badge.className = 'folder-badge';
+				badge.textContent = count;
+				previewContainer.appendChild(badge);
+			}
+
+			const titleDiv = document.createElement('div');
+			titleDiv.className = 'tile-title';
+			titleDiv.textContent = item.title || t('untitled');
+
+			tile.appendChild(previewContainer);
+			tile.appendChild(titleDiv);
+
 			tile.addEventListener('click', (e) => {
 				if (!e.defaultPrevented) App.navigateTo(item.id);
 			});
@@ -197,7 +233,17 @@ const UI = {
 		// Menu Button
 		const menuBtn = document.createElement('div');
 		menuBtn.className = 'tile-menu-btn';
-		menuBtn.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M12,16A2,2 0 0,1 14,18A2,2 0 0,1 12,20A2,2 0 0,1 10,18A2,2 0 0,1 12,16M12,10A2,2 0 0,1 14,12A2,2 0 0,1 12,14A2,2 0 0,1 10,12A2,2 0 0,1 12,10M12,4A2,2 0 0,1 14,6A2,2 0 0,1 12,8A2,2 0 0,1 10,6A2,2 0 0,1 12,4Z" /></svg>';
+
+		const menuSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+		menuSvg.setAttribute('viewBox', '0 0 24 24');
+		menuSvg.setAttribute('width', '18');
+		menuSvg.setAttribute('height', '18');
+		const menuPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+		menuPath.setAttribute('fill', 'currentColor');
+		menuPath.setAttribute('d', 'M12,16A2,2 0 0,1 14,18A2,2 0 0,1 12,20A2,2 0 0,1 10,18A2,2 0 0,1 12,16M12,10A2,2 0 0,1 14,12A2,2 0 0,1 12,14A2,2 0 0,1 10,12A2,2 0 0,1 12,10M12,4A2,2 0 0,1 14,6A2,2 0 0,1 12,8A2,2 0 0,1 10,6A2,2 0 0,1 12,4Z');
+		menuSvg.appendChild(menuPath);
+		menuBtn.appendChild(menuSvg);
+
 		menuBtn.addEventListener('click', (e) => {
 			e.preventDefault();
 			e.stopPropagation();
@@ -210,7 +256,6 @@ const UI = {
 				e.preventDefault();
 				App.showContextMenu(e, item);
 			}
-			// For bookmarks, let the default browser context menu show
 		});
 
 		// Drag and Drop
@@ -228,7 +273,6 @@ const UI = {
 			if (isFolder) {
 				tile.classList.add('drag-over');
 			} else {
-				// Show drop indicator for reordering
 				this.showDropIndicator(e, tile);
 			}
 		});
@@ -245,11 +289,11 @@ const UI = {
 				const parentId = item.parentId;
 				const siblings = await Storage.getBookmarks(parentId);
 				let targetIndex = siblings.findIndex(i => i.id === item.id);
-				
+
 				if (indicator && indicator.dataset.position === 'after') {
 					targetIndex++;
 				}
-				
+
 				await Storage.moveBookmark(draggedId, parentId, targetIndex);
 			}
 			this.hideDropIndicator();
@@ -281,7 +325,11 @@ const UI = {
 	},
 
 	async renderBreadcrumbs(currentFolder) {
-		this.elements.breadcrumb.innerHTML = '';
+		// Clear breadcrumbs safely
+		while (this.elements.breadcrumb.firstChild) {
+			this.elements.breadcrumb.removeChild(this.elements.breadcrumb.firstChild);
+		}
+
 		const path = [];
 		let temp = currentFolder;
 
@@ -330,3 +378,4 @@ const UI = {
 		});
 	}
 };
+

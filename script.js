@@ -10,13 +10,13 @@ const App = {
 		// Set Language
 		setLanguage(this.settings.lang || 'en');
 
-			// Update UI controls to match settings
-			document.getElementById('lang-select').value = this.settings.lang;
-			document.getElementById('theme-select').value = this.settings.theme;
-			document.getElementById('folder-style-select').value = this.settings.folderStyle;
-			document.getElementById('show-count-checkbox').checked = this.settings.showCount;
-			document.getElementById('bg-image-input').value = this.settings.bgImage || '';
-			document.getElementById('bg-color-input').value = this.settings.bgColor || '#000000';
+		// Update UI controls to match settings
+		document.getElementById('lang-select').value = this.settings.lang;
+		document.getElementById('theme-select').value = this.settings.theme;
+		document.getElementById('folder-style-select').value = this.settings.folderStyle;
+		document.getElementById('show-count-checkbox').checked = this.settings.showCount;
+		document.getElementById('bg-image-input').value = this.settings.bgImage || '';
+		document.getElementById('bg-color-input').value = this.settings.bgColor || '#000000';
 
 		// Use start folder from settings or find default
 		const tree = await Storage.getFullTree();
@@ -39,7 +39,11 @@ const App = {
 	async populateStartFolderSelect() {
 		const folders = await Storage.getAllFolders();
 		const select = UI.elements.startFolderSelect;
-		select.innerHTML = '';
+
+		// Clear select options safely
+		while (select.firstChild) {
+			select.removeChild(select.firstChild);
+		}
 
 		if (folders.length === 0) {
 			const option = document.createElement('option');
@@ -158,28 +162,28 @@ const App = {
 			reader.onload = async (event) => {
 				try {
 					const imported = JSON.parse(event.target.result);
-						if (imported.settings) {
-							const defaults = {
-								theme: 'theme-auto',
-								folderStyle: 'solid',
-								lang: 'en',
-								startFolderId: '1',
-								hiddenFolders: [],
-								showCount: true,
-								bgImage: '',
-								bgColor: ''
-							};
-							this.settings = { ...defaults, ...imported.settings };
-							await Storage.saveSettings(this.settings);
-						}
-						
-						if (imported.bookmarks && imported.bookmarks.length > 0) {
-							UI.notify(t('importing'), 'info');
-							await Storage.importBookmarks(this.currentFolderId, imported.bookmarks);
-							UI.notify(t('importSuccess'), 'success');
-						}
-						
-						this.refresh();
+					if (imported.settings) {
+						const defaults = {
+							theme: 'theme-auto',
+							folderStyle: 'solid',
+							lang: 'en',
+							startFolderId: '1',
+							hiddenFolders: [],
+							showCount: true,
+							bgImage: '',
+							bgColor: ''
+						};
+						this.settings = { ...defaults, ...imported.settings };
+						await Storage.saveSettings(this.settings);
+					}
+
+					if (imported.bookmarks && imported.bookmarks.length > 0) {
+						UI.notify(t('importing'), 'info');
+						await Storage.importBookmarks(this.currentFolderId, imported.bookmarks);
+						UI.notify(t('importSuccess'), 'success');
+					}
+
+					this.refresh();
 				} catch (err) { console.error(err); }
 			};
 			reader.readAsText(file);
@@ -259,7 +263,11 @@ const App = {
 	showHiddenFoldersMenu(e) {
 		const menu = UI.elements.hiddenFoldersMenu;
 		const list = UI.elements.hiddenFoldersList;
-		list.innerHTML = '';
+
+		// Clear list safely
+		while (list.firstChild) {
+			list.removeChild(list.firstChild);
+		}
 
 		const hiddenInCurrent = this.settings.hiddenFolders;
 		if (hiddenInCurrent.length === 0) {
@@ -273,11 +281,22 @@ const App = {
 				if (folder) {
 					const div = document.createElement('div');
 					div.className = 'menu-item';
-					div.innerHTML = `<span>${folder.title || t('untitled')}</span> <span style="color: var(--accent-color)">${t('restore')}</span>`;
-						div.addEventListener('click', () => {
-							this.settings.hiddenFolders = this.settings.hiddenFolders.filter(fid => fid !== id);
-							this.saveSettings();
-						});
+
+					const titleSpan = document.createElement('span');
+					titleSpan.textContent = folder.title || t('untitled');
+
+					const restoreSpan = document.createElement('span');
+					restoreSpan.style.color = 'var(--accent-color)';
+					restoreSpan.style.marginLeft = '8px'; // Added small margin for spacing
+					restoreSpan.textContent = t('restore');
+
+					div.appendChild(titleSpan);
+					div.appendChild(restoreSpan);
+
+					div.addEventListener('click', () => {
+						this.settings.hiddenFolders = this.settings.hiddenFolders.filter(fid => fid !== id);
+						this.saveSettings();
+					});
 					list.appendChild(div);
 				}
 			});
@@ -340,3 +359,4 @@ const App = {
 };
 
 App.init();
+
