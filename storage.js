@@ -2,17 +2,17 @@ const Storage = {
 	async getSettings() {
 		return new Promise((resolve) => {
 			chrome.storage.local.get(['settings'], (result) => {
-						const defaults = {
-							theme: 'theme-auto',
-							folderStyle: 'solid',
-							lang: 'en',
-						startFolderId: '1',
-						hiddenFolders: [],
-						showCount: true,
-						bgImage: '',
-						bgColor: ''
-					};
-					resolve({ ...defaults, ...result.settings });
+				const defaults = {
+					theme: 'theme-auto',
+					folderStyle: 'solid',
+					lang: 'en',
+					startFolderId: '1',
+					hiddenFolders: [],
+					showCount: true,
+					bgImage: '',
+					bgColor: ''
+				};
+				resolve({ ...defaults, ...result.settings });
 			});
 		});
 	},
@@ -78,23 +78,23 @@ const Storage = {
 	},
 
 	async moveBookmark(id, parentId, index) {
-			return new Promise((resolve) => {
-				chrome.bookmarks.move(id, { parentId, index }, resolve);
-			});
-		},
+		return new Promise((resolve) => {
+			chrome.bookmarks.move(id, { parentId, index }, resolve);
+		});
+	},
 
-		async importBookmarks(parentId, bookmarks) {
-			for (const item of bookmarks) {
-				if (item.url) {
-					await this.createBookmark(parentId, item.title, item.url);
-				} else {
-					const folder = await this.createFolder(parentId, item.title);
-					if (folder && item.children && item.children.length > 0) {
-						await Storage.importBookmarks(folder.id, item.children);
-					}
+	async importBookmarks(parentId, bookmarks) {
+		for (const item of bookmarks) {
+			if (item.url) {
+				await this.createBookmark(parentId, item.title, item.url);
+			} else {
+				const folder = await this.createFolder(parentId, item.title);
+				if (folder && item.children && item.children.length > 0) {
+					await Storage.importBookmarks(folder.id, item.children);
 				}
 			}
-		},
+		}
+	},
 
 	async getFullTree() {
 		return new Promise((resolve) => {
